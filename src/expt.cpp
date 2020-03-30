@@ -77,18 +77,23 @@ public:
         fill(0);
     }
 
-    void print() const {
+    void print(const T thresh) const {
         size_t row, col;
         for (row = 0; row < rows; row++) {
             for (col = 0; col < cols; col++) {
-                if ((*this)[row][col] == 0)
-                    printf("        ");
+                T val = (*this)[row][col];
+                if (val*val <= thresh*thresh)
+                    printf("             ");
                 else
-                    printf("%0.5g ", (*this)[row][col]);
+                    printf("% 0.5e ", (*this)[row][col]);
             }
                 // std::cout << (*this)[row][col] << " ";
             std::cout << std::endl;
         }
+    }
+
+    void print() const {
+        print(0);
     }
 };
 
@@ -194,7 +199,8 @@ public:
 
     void print_currents() const {
         const Matrix<double> &mat = (phase ? mat1 : mat2);
-        Matrix<double> sx(dimension), sy(dimension);
+        Matrix<double> sx(dimension), sy(dimension), divs(dimension-1);
+        sx.zero(); sy.zero(); divs.zero();
 
         double p2 = p() * 0.5;
         double q2 = q() * 0.5;
@@ -204,13 +210,21 @@ public:
                 sy[y][x] = p2*mat[y+1][x] - q2*mat[y][x];
             }
         }
+        for (size_t y = 1; y < dimension; y++)
+            for (size_t x = 1; x < dimension; x++)
+                divs[y-1][x-1] = sx[y][x]-sx[y][x-1]
+                               + sy[y][x]-sy[y-1][x];
 
         std::cout << "Current (left)" << std::endl;
-        sx.print();
+        sx.print(1e-15);
         std::cout << std::endl;
 
         std::cout << "Current (up)" << std::endl;
-        sy.print();
+        sy.print(1e-15);
+        std::cout << std::endl;
+
+        std::cout << "Current Divergence" << std::endl;
+        divs.print(1e-15);
         std::cout << std::endl;
     }
 };
@@ -220,13 +234,27 @@ void interrupt_handler(int signal) { interrupted = true; }
 
 int main(int argc, char **argv) {
     std::signal(SIGINT, interrupt_handler);
-    Lattice rw(1, 1, 10, 20);
+
+    double bias = 1;
+    size_t width = 1;
+    size_t distance = 10;
+    size_t dimension = 20;
+
+    printf("Usage: %s [bias [width [dist [sim_size]]]]\n", argv[0]);
+    printf("       ctrl-c to stop\n\n");
+
+    if (argc > 1) bias = atof(argv[1]);
+    if (argc > 2) width = atoll(argv[2]);
+    if (argc > 3) distance = atoll(argv[3]);
+    if (argc > 4) dimension = atoll(argv[4]);
+
+    Lattice rw(bias, width, distance, dimension);
     for (int i = 1; !interrupted; i++) {
         rw.evolve();
-        if (i%10000 == 0) {
+        if (i%100 == 0) {
             double err = rw.error();
             std::cout << rw.mfpt() << " (" << err << ")" << std::endl;
-            if (err < 1e-20) break;
+            if (err < 1e-30) break;
         }
     }
     rw.print();
