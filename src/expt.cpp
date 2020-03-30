@@ -82,9 +82,9 @@ public:
         for (row = 0; row < rows; row++) {
             for (col = 0; col < cols; col++) {
                 if ((*this)[row][col] == 0)
-                    printf("     ");
+                    printf("        ");
                 else
-                    printf("%0.2f ", (*this)[row][col]);
+                    printf("%0.5g ", (*this)[row][col]);
             }
                 // std::cout << (*this)[row][col] << " ";
             std::cout << std::endl;
@@ -95,11 +95,9 @@ public:
 class Lattice {
     double bias;
     size_t width, distance, dimension;
-    Matrix<double> mat1_, mat2_; // backing
-    Matrix<double> mat1, mat2;   // 'real' 
+    Matrix<double> mat1_, mat2_; // padded backing
+    Matrix<double> mat1,  mat2;  // 'real' view
     bool phase;
-    /* we give the matrix 1 row of padding to ensure
-     */
 
 public:
 
@@ -152,6 +150,11 @@ public:
             m2[x][z] += m2[x][z+1];
             m2[0][x] += m2[ -1][x];
             m2[z][x] += m2[z+1][x];
+
+            m2[x][ -1] = 0;
+            m2[x][z+1] = 0;
+            m2[ -1][x] = 0;
+            m2[z+1][x] = 0;
         }
 
         // inject
@@ -168,13 +171,6 @@ public:
         while (x >= 0) m2[y++][x--] = 0;
 
         phase = !phase;
-        // std::cout << m2.sum() << " " << error() << std::endl;
-        // std::cout << phase << std::endl;
-        // m1.print();
-        // std::cout << std::endl;
-        // m2.print();
-        // std::cout << std::endl;
-        // std::cout << std::endl;
     }
 
     double error() const {
@@ -195,6 +191,28 @@ public:
     void print() const {
         (phase ? mat1 : mat2).print();
     }
+
+    void print_currents() const {
+        const Matrix<double> &mat = (phase ? mat1 : mat2);
+        Matrix<double> sx(dimension), sy(dimension);
+
+        double p2 = p() * 0.5;
+        double q2 = q() * 0.5;
+        for (size_t y = 0; y < dimension; y++) {
+            for (size_t x = 0; x < dimension; x++) {
+                sx[y][x] = p2*mat[y][x+1] - q2*mat[y][x];
+                sy[y][x] = p2*mat[y+1][x] - q2*mat[y][x];
+            }
+        }
+
+        std::cout << "Current (left)" << std::endl;
+        sx.print();
+        std::cout << std::endl;
+
+        std::cout << "Current (up)" << std::endl;
+        sy.print();
+        std::cout << std::endl;
+    }
 };
 
 namespace { volatile std::atomic_bool interrupted; }
@@ -202,7 +220,7 @@ void interrupt_handler(int signal) { interrupted = true; }
 
 int main(int argc, char **argv) {
     std::signal(SIGINT, interrupt_handler);
-    Lattice rw(0.1, 1, 10, 20);
+    Lattice rw(1, 1, 10, 20);
     for (int i = 1; !interrupted; i++) {
         rw.evolve();
         if (i%10000 == 0) {
@@ -212,5 +230,7 @@ int main(int argc, char **argv) {
         }
     }
     rw.print();
+    std::cout << std::endl;
+    rw.print_currents();
     return 0;
 }
