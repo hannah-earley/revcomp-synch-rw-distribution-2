@@ -1,0 +1,32 @@
+{
+	"build_systems":
+	[
+		{
+			"cmd":
+			[
+				"make",
+				"quick-verbose"
+			],
+			"name": "Makey Makey",
+			"working_dir": "$project_path"
+		},
+		{
+			"cmd":
+			[
+				"make",
+				"verbose"
+			],
+			"name": "Makey Fully",
+			"working_dir": "$project_path"
+		}
+	],
+	"folders":
+	[
+		{
+			"path": "."
+		},
+		{
+			"path": "/Users/sourtin/Dropbox/phd/expt/rwx-dist"
+		}
+	]
+}
