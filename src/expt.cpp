@@ -85,11 +85,24 @@ public:
                 if (val*val <= thresh*thresh)
                     printf("             ");
                 else
-                    printf("% 0.5e ", (*this)[row][col]);
+                    printf("% 0.5e ", val);
             }
-                // std::cout << (*this)[row][col] << " ";
             std::cout << std::endl;
         }
+    }
+
+    void print2() const {
+        size_t row, col;
+        std::ios_base::fmtflags flags( std::cout.flags() );
+        std::cout << std::hexfloat;
+
+        for (row = 0; row < rows; row++) {
+            for (col = 0; col < cols; col++)
+                std::cout << (*this)[row][col] << " ";
+            std::cout << std::endl;
+        }
+
+        std::cout.flags(flags);
     }
 
     void print() const {
@@ -163,11 +176,20 @@ public:
         }
 
         // inject
+        // row = width + distance;
+        // x = row - 1;
+        // y = 0;
+        // double val = (double)1.0 / (double)row;
+        // while (x >= 0) m2[y++][x--] += val;
+
+        // inject
         row = width + distance;
         x = row - 1;
         y = 0;
-        double val = (double)1.0 / (double)row;
-        while (x >= 0) m2[y++][x--] += val;
+        double val = (double)1.0 / (double)(row - 1);
+                       m2[y++][x--] += val * 0.5;
+        while (x >= 1) m2[y++][x--] += val;
+                       m2[y++][x--] += val * 0.5;
 
         // absorb
         row = width;
@@ -194,7 +216,7 @@ public:
     }
 
     void print() const {
-        (phase ? mat1 : mat2).print();
+        (phase ? mat1 : mat2).print2();
     }
 
     void print_currents() const {
@@ -240,8 +262,8 @@ int main(int argc, char **argv) {
     size_t distance = 10;
     size_t dimension = 20;
 
-    printf("Usage: %s [bias [width [dist [sim_size]]]]\n", argv[0]);
-    printf("       ctrl-c to stop\n\n");
+    std::cerr << "Usage: " << argv[0] << " [bias [width [dist [sim_size]]]]" << std::endl;
+    std::cerr << "       ctrl-c to stop" << std::endl << std::endl;
 
     if (argc > 1) bias = atof(argv[1]);
     if (argc > 2) width = atoll(argv[2]);
@@ -249,16 +271,21 @@ int main(int argc, char **argv) {
     if (argc > 4) dimension = atoll(argv[4]);
 
     Lattice rw(bias, width, distance, dimension);
+    int converged = 0;
     for (int i = 1; !interrupted; i++) {
         rw.evolve();
         if (i%100 == 0) {
             double err = rw.error();
-            std::cout << rw.mfpt() << " (" << err << ")" << std::endl;
-            if (err < 1e-30) break;
+            std::cerr << rw.mfpt() << " (" << err << ")" << std::endl;
+            if (err == 0) {
+                converged++;
+                if (converged > 10)
+                    break;
+            } else converged = 0;
         }
     }
     rw.print();
-    std::cout << std::endl;
-    rw.print_currents();
+    // std::cout << std::endl;
+    // rw.print_currents();
     return 0;
 }
