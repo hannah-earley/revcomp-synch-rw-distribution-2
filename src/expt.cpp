@@ -112,15 +112,16 @@ public:
 
 class Lattice {
     double bias;
-    size_t width, distance, dimension;
+    size_t width, distance, gap, dimension;
     Matrix<double> mat1_, mat2_; // padded backing
     Matrix<double> mat1,  mat2;  // 'real' view
     bool phase;
 
 public:
 
-    Lattice(double bias, size_t width, size_t distance, size_t dimension) :
-        bias(bias), width(width), distance(distance), dimension(dimension),
+    Lattice(double bias, size_t width, size_t distance, size_t gap, size_t dimension) :
+        bias(bias), width(width), distance(distance),
+        gap(gap), dimension(dimension),
         mat1_(dimension+2), mat2_(dimension+2),
         mat1(mat1_, 1, 1, dimension, dimension),
         mat2(mat2_, 1, 1, dimension, dimension),
@@ -184,12 +185,13 @@ public:
 
         // inject
         row = width + distance;
-        x = row - 1;
-        y = 0;
-        double val = (double)1.0 / (double)(row - 1);
-                       m2[y++][x--] += val * 0.5;
-        while (x >= 1) m2[y++][x--] += val;
-                       m2[y++][x--] += val * 0.5;
+        size_t n = (row - 1) - 2*gap;
+        x = row - 1 - gap;
+        y = gap;
+        double val = (double)1.0 / (double)(n);
+                             m2[y++][x--] += val * 0.5;
+        while (x >= gap + 1) m2[y++][x--] += val;
+                             m2[y++][x--] += val * 0.5;
 
         // absorb
         row = width;
@@ -260,17 +262,19 @@ int main(int argc, char **argv) {
     double bias = 1;
     size_t width = 1;
     size_t distance = 10;
+    size_t gap = 0;
     size_t dimension = 20;
 
-    std::cerr << "Usage: " << argv[0] << " [bias [width [dist [sim_size]]]]" << std::endl;
+    std::cerr << "Usage: " << argv[0] << " [bias [width [dist [gap [sim_size]]]]" << std::endl;
     std::cerr << "       ctrl-c to stop" << std::endl << std::endl;
 
     if (argc > 1) bias = atof(argv[1]);
     if (argc > 2) width = atoll(argv[2]);
     if (argc > 3) distance = atoll(argv[3]);
-    if (argc > 4) dimension = atoll(argv[4]);
+    if (argc > 4) gap = atoll(argv[4]);
+    if (argc > 5) dimension = atoll(argv[5]);
 
-    Lattice rw(bias, width, distance, dimension);
+    Lattice rw(bias, width, distance, gap, dimension);
     int converged = 0;
     for (int i = 1; !interrupted; i++) {
         rw.evolve();
