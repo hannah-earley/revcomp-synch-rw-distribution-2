@@ -112,16 +112,17 @@ public:
 
 class Lattice {
     double bias;
-    size_t width, distance, gap, dimension;
+    size_t width, distance, dimension;
+    ssize_t gap;
     Matrix<double> mat1_, mat2_; // padded backing
     Matrix<double> mat1,  mat2;  // 'real' view
     bool phase;
 
 public:
 
-    Lattice(double bias, size_t width, size_t distance, size_t gap, size_t dimension) :
+    Lattice(double bias, size_t width, size_t distance, ssize_t gap, size_t dimension) :
         bias(bias), width(width), distance(distance),
-        gap(gap), dimension(dimension),
+        dimension(dimension), gap(gap),
         mat1_(dimension+2), mat2_(dimension+2),
         mat1(mat1_, 1, 1, dimension, dimension),
         mat2(mat2_, 1, 1, dimension, dimension),
@@ -185,13 +186,24 @@ public:
 
         // inject
         row = width + distance;
-        size_t n = (row - 1) - 2*gap;
-        x = row - 1 - gap;
-        y = gap;
-        double val = (double)1.0 / (double)(n);
-                             m2[y++][x--] += val * 0.5;
-        while (x >= gap + 1) m2[y++][x--] += val;
-                             m2[y++][x--] += val * 0.5;
+        if (gap >= 0) {
+            size_t n = (row - 1) - 2*gap;
+            x = row - 1 - gap;
+            y = gap;
+            double val = (double)1.0 / (double)(n);
+                                 m2[y++][x--] += val * 0.5;
+            while (x >= gap + 1) m2[y++][x--] += val;
+                                 m2[y++][x--] += val * 0.5;
+        } else {
+            x = row - 1;
+            y = 0;
+            double val = (double)1.0 / (double)(-2*gap);
+            while (y < -gap) {
+                m2[x][y] += val;
+                m2[y][x] += val;
+                y++; x--;
+            }
+        }
 
         // absorb
         row = width;
@@ -262,7 +274,7 @@ int main(int argc, char **argv) {
     double bias = 1;
     size_t width = 1;
     size_t distance = 10;
-    size_t gap = 0;
+    ssize_t gap = 0;
     size_t dimension = 20;
 
     std::cerr << "Usage: " << argv[0] << " [bias [width [dist [gap [sim_size]]]]" << std::endl;
